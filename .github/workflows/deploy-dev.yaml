@@ -13,7 +13,24 @@ jobs:
     steps:
     - name: Checkout código
       uses: actions/checkout@v4
-      
+
+    - name: Instalar kubectl
+      run: |
+        echo "📥 Instalando kubectl..."
+        curl -LO "https://dl.k8s.io/release/$(curl -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+        chmod +x kubectl
+        sudo mv kubectl /usr/local/bin/
+        kubectl version --client
+
+    - name: Configurar acceso al cluster
+      env:
+        KUBECONFIG_CONTENT: ${{ secrets.KUBECONFIG_DEV }}
+      run: |
+        echo "🔑 Configurando acceso..."
+        mkdir -p ~/.kube
+        echo "$KUBECONFIG_CONTENT" > ~/.kube/config
+        chmod 600 ~/.kube/config
+
     - name: Verificar cluster
       run: |
         echo "🔍 Verificando conexión..."
