@@ -26,6 +26,22 @@ jobs:
         sudo mv kubectl /usr/local/bin/
         kubectl version --client
 
+    - name: Mostrar info del cluster y contexto
+      run: |
+        echo "🔎 KUBECONFIG (path): ${KUBECONFIG:-$HOME/.kube/config}"
+        echo "🔎 Contextos disponibles:"
+        kubectl config get-contexts || true
+        echo "🔎 Contexto actual:"
+        kubectl config current-context || true
+        echo "🔎 Versiones (cliente/servidor si accesible):"
+        kubectl version --short || true
+        echo "🔎 Cluster info:"
+        kubectl cluster-info 2>&1 || echo "kubectl no tiene acceso al cluster o KUBECONFIG no está configurado"
+        echo "🔎 Nodos (si están disponibles):"
+        kubectl get nodes -o wide 2>&1 || echo "No hay nodos visibles o no hay permisos"
+        echo "🔎 Namespaces visibles:"
+        kubectl get ns || true
+
     - name: Crear namespace si no existe
       run: |
         kubectl get ns prod || kubectl create ns prod
@@ -74,5 +90,3 @@ jobs:
           kubectl rollout undo deployment/mi-app -n prod
           echo "✅ Rollback automático completado"
         fi
-
-        
