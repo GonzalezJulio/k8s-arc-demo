@@ -41,6 +41,8 @@ jobs:
         kubectl get nodes -o wide 2>&1 || echo "No hay nodos visibles o no hay permisos"
         echo "🔎 Namespaces visibles:"
         kubectl get ns || true
+        echo "🔎 Pods actuales en todos los namespaces:"
+        kubectl get pods -A || true
 
     - name: Crear namespace si no existe
       run: |
