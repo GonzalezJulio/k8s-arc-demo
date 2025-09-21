@@ -13,11 +13,23 @@ jobs:
     steps:
     - name: Checkout código
       uses: actions/checkout@v4
-      
+
+    - name: Instalar kubectl
+      run: |
+        echo "📥 Instalando kubectl v1.30.0..."
+        curl -LO "https://dl.k8s.io/release/v1.30.0/bin/linux/amd64/kubectl"
+        chmod +x kubectl
+        sudo mv kubectl /usr/local/bin/
+        kubectl version --client
+    
+    - name: Crear namespace si no existe
+      run: |
+        kubectl get ns staging || kubectl create ns staging
+
     - name: Desplegar a staging
       run: |
         echo "🎭 Desplegando a STAGING..."
-        kubectl apply -f k8s/staging/app-staging.yaml
+        kubectl apply -f k8s/staging/app-staging.yaml -n staging
         
     - name: Esperar que esté listo
       run: |
@@ -27,9 +39,11 @@ jobs:
       run: |
         echo "✅ Estado en STAGING:"
         kubectl get pods -n staging
+        kubectl get svc -n staging
         echo "🌐 Accesible en: http://localhost:30002"
         
     - name: Test básico
       run: |
         echo "🧪 Probando conectividad..."
-        kubectl run test-staging --image=curlimages/curl --rm -i --restart=Never --           curl -s http://mi-app-service.staging.svc.cluster.local || echo "Test completado"
+        kubectl run test-staging --image=curlimages/curl --rm -i --restart=Never -n staging -- \
+          curl -s http://mi-app-service.staging.svc.cluster.local || echo "Test completado"
