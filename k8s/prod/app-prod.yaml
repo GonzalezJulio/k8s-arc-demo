@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
       - name: app
-        image: nginx:alpine
+        image: aresden113/mi-html-app:primavera
         ports:
         - containerPort: 80
         env:
