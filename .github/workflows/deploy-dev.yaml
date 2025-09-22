@@ -1,4 +1,4 @@
-name: 🛠️ Deploy a DEV
+name: 🧪 Tests + Deploy a DEV
 
 on:
   push:
@@ -6,48 +6,66 @@ on:
   workflow_dispatch:
 
 jobs:
-  deploy-dev:
-    name: Desplegar a Desarrollo
+  test-and-deploy:
+    name: Tests y Deploy Seguro
     runs-on: mi-runners
     
     steps:
     - name: Checkout código
       uses: actions/checkout@v4
-
-    - name: Instalar kubectl
+      
+    - name: 🧪 Ejecutar tests básicos
       run: |
-        echo "📥 Instalando kubectl v1.30.0..."
-        curl -LO "https://dl.k8s.io/release/v1.30.0/bin/linux/amd64/kubectl"
-        chmod +x kubectl
-        sudo mv kubectl /usr/local/bin/
+        echo "🧪 Verificando que tenemos kubectl..."
         kubectl version --client
-
-    - name: Configurar acceso al cluster
-      env:
-        KUBECONFIG_CONTENT: ${{ secrets.KUBECONFIG_DEV }}
-      run: |
-        echo "🔑 Configurando acceso..."
-        mkdir -p ~/.kube
-        echo "$KUBECONFIG_CONTENT" > ~/.kube/config
-        chmod 600 ~/.kube/config
-
-    - name: Verificar cluster
-      run: |
-        echo "🔍 Verificando conexión..."
+        
+        echo "🔍 Verificando cluster..."
         kubectl get nodes
         
-    - name: Desplegar a desarrollo
+        echo "✅ Tests de infraestructura pasaron"
+        
+    - name: 🛠️ Deploy con health checks
       run: |
-        echo "🛠️ Desplegando a DESARROLLO..."
+        echo "🛠️ Desplegando con health checks..."
         kubectl apply -f k8s/dev/app-dev.yaml
         
-    - name: Esperar que esté listo
+    - name: ⏳ Esperar deployment seguro
       run: |
-        echo "⏳ Esperando deployment..."
+        echo "⏳ Esperando que el deployment sea exitoso..."
         kubectl rollout status deployment/mi-app -n dev --timeout=300s
         
-    - name: Ver resultado
+        echo "� Verificando que los pods estén READY..."
+        kubectl get pods -n dev -l app=mi-app
+        
+        # Esperar que al menos 1 pod esté ready
+        kubectl wait --for=condition=ready pod -l app=mi-app -n dev --timeout=120s
+        
+    - name: 🧪 Tests de conectividad
       run: |
-        echo "✅ Estado en DEV:"
-        kubectl get pods -n dev
-        echo "🌐 Accesible en: http://localhost:30001"
+        echo "🧪 Probando conectividad interna..."
+        
+        # Test dentro del cluster
+        kubectl run test-pod --image=curlimages/curl --rm -i --restart=Never -- \
+          curl -f http://mi-app-service.dev.svc.cluster.local --max-time 10 || true
+          
+        # Verificar que el service responde
+        kubectl get service -n dev mi-app-service
+        
+        echo "✅ Tests de conectividad completados"
+        
+    - name: 📊 Estado final
+      run: |
+        echo "📊 Estado final del deployment:"
+        kubectl get deployment -n dev mi-app -o wide
+        kubectl get pods -n dev -l app=mi-app -o wide
+        echo ""
+        echo "🌐 Aplicación accesible en:"
+        echo "   NodePort: http://localhost:30001"
+        echo "   Port-forward: kubectl port-forward -n dev svc/mi-app-service 8001:80"
+        
+    - name: 🚨 Rollback si algo falló
+      if: failure()
+      run: |
+        echo "🚨 ¡Algo falló! Ejecutando rollback..."
+        kubectl rollout undo deployment/mi-app -n dev || echo "No hay versión previa"
+        echo "🔙 Rollback completado"

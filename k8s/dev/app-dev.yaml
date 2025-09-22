@@ -1,4 +1,3 @@
-# Deployment para desarrollo
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -8,7 +7,12 @@ metadata:
     app: mi-app
     environment: development
 spec:
-  replicas: 1  # Solo 1 réplica en dev
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0    # No bajar pods hasta que el nuevo esté listo
+      maxSurge: 1          # Máximo 1 pod extra durante el update
   selector:
     matchLabels:
       app: mi-app
@@ -26,10 +30,27 @@ spec:
         env:
         - name: ENVIRONMENT
           value: "DEVELOPMENT"
-        - name: DEBUG
-          value: "true"
-        - name: VERSION
-          value: "dev-build"
+        
+        # 🏥 Health Checks
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5    # Esperar 5 seg antes del primer check
+          periodSeconds: 10         # Revisar cada 10 segundos
+          timeoutSeconds: 5         # Timeout de 5 segundos
+          failureThreshold: 3       # Fallar después de 3 intentos
+          
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 30   # Dar tiempo a que arranque
+          periodSeconds: 30         # Revisar cada 30 segundos
+          timeoutSeconds: 5
+          failureThreshold: 3
+          
+        # 💾 Recursos controlados
         resources:
           requests:
             memory: "32Mi"
@@ -38,7 +59,6 @@ spec:
             memory: "64Mi"
             cpu: "50m"
 ---
-# Service para desarrollo
 apiVersion: v1
 kind: Service
 metadata:
